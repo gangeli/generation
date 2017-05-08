@@ -1,0 +1,73 @@
+#!/bin/bash
+# USAGE: ./run.weather [train_count] [test_count]
+
+train=$1
+if [ "$train" == "" ]; then
+	train=25000
+fi
+test=$2
+if [ "$test" == "" ]; then
+	test=4528
+fi
+echo "Training WEATHER on $train examples"
+
+mkdir -p outs/weather
+
+
+# -- ALIGN
+cat outs/weather/save.$train.$test.aligns &> /dev/null
+if [ "$?" != "0" ]; then
+	java \
+			-cp dist/generation.jar:etc/lib.jar:etc/aux.jar:etc/scala-library.jar \
+			-Xmx5000M -server generation.Alignment \
+		-modelType event3 -inputFileExt events -inputFormat raw -initNoise 0 \
+		-outputFullPred -useEventTypeDistrib true -oneEventPerExample 0,0 \
+		-dontCrossPunctuation true \
+		-disallowConsecutiveRepeatFields true -Options.stage2.numIters 15 \
+		-newEventTypeFieldPerWord 0,5 -indepFields 0,5 \
+		-indepEventTypes 0,10 \
+		-Options.stage2.smoothing 0.1 \
+			-create -overwrite \
+			-testIndexFile /dev/null \
+			-execPoolDir outs/weather \
+		-inputPaths data/weather \
+		-alignSavePath outs/weather/save.$train.$test.aligns \
+		-paramSavePath outs/weather/save.$train.$test.params \
+		-trainStart 0 -trainEnd $train -testStart $train \
+		-testEnd `calc $train+$test`
+else
+	echo "USING SAVED ALIGNMENT"
+fi
+
+# -- RUN
+java \
+	-cp dist/generation.jar:etc/lib.jar:etc/aux.jar:etc/scala-library.jar \
+	-Xmx5000M -server generation.Generation \
+	-useTemplates \
+	-eventModel maxent -fieldModel maxent -wordModel perceptron \
+	-sigmaEvent 1.5 -sigmaFieldSet 1.5 -sigmaTemplate 1.5 \
+	-maxentIterations 100 -perceptronIterations 10 \
+	-prohibitNonNumericNum -maxTemplates 100 -minTemplCount 0 \
+		-featEventMarkov -featEventTail 2 -featEventAllTails \
+		-featEventTypeRep -featEventHist -featEventLMStop -featEventVal fuzzy \
+		-featFSPrior -featFSFirst -featFSVal fuzzy \
+		-featTemplMarkov -featTemplLM -lmFactor 1.0 -featTemplPrior \
+		-featTemplHierarchical -featTemplVal fuzzy \
+		-lm event3 -numGrams 3 -lmInputPath data/weather -lmFileExt text \
+	-modelType event3 -inputFileExt events -inputFormat raw -initNoise 0 \
+	-outputFullPred -useEventTypeDistrib true -oneEventPerExample 0,-1 \
+	-dontCrossPunctuation false \
+	-disallowConsecutiveRepeatFields true -Options.stage2.numIters 10 \
+	-newEventTypeFieldPerWord 0,0 -indepFields 0,0 \
+	-indepEventTypes 0,-1 \
+	-Options.stage2.smoothing 0.1 \
+		-create -overwrite \
+		-testIndexFile /dev/null \
+		-execPoolDir outs/weather \
+		-loadParams -loadAligns \
+	-inputPaths data/weather \
+	-alignSavePath outs/weather/save.$train.$test.aligns \
+	-paramSavePath outs/weather/save.$train.$test.params \
+	-trainStart 0 -trainEnd $train -testStart $train \
+		-testEnd `calc $train+$test`
+

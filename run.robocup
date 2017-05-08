@@ -1,0 +1,145 @@
+#!/bin/bash
+# USAGE: ./run.robocup
+
+s2001=507
+s2002=342
+s2003=205
+s2004=303
+
+train2001=`expr $s2002 + $s2003 + $s2004`
+train2002=`expr $s2001 + $s2003 + $s2004`
+train2003=`expr $s2002 + $s2001 + $s2004`
+train2004=`expr $s2002 + $s2003 + $s2001`
+total=`expr $s2001 + $s2002 + $s2003 + $s2004`
+
+echo "Training ROBOCUP"
+
+mkdir -p outs/robocup
+
+# -- DATA
+if [ -d data/robocup.clean ]; then
+	echo "Found data split directory"
+else 
+	cd data
+	./makeData.sh
+	cd ..
+fi
+
+# -- ALIGN
+align(){
+	cat outs/robocup/save.200$1.aligns &> /dev/null
+	if [ "$?" != "0" ]; then
+		java \
+				-cp dist/generation.jar:etc/lib.jar:etc/aux.jar:etc/scala-library.jar \
+				-Xmx500M -server generation.Alignment \
+			-modelType event3 -inputFileExt events -inputFormat raw -initNoise 0 \
+			-outputFullPred -useEventTypeDistrib true -oneEventPerExample 0,-1 \
+			-dontCrossPunctuation false \
+			-disallowConsecutiveRepeatFields true -Options.stage2.numIters 10 \
+			-newEventTypeFieldPerWord 0,0 -indepFields 0,0 \
+			-indepEventTypes 0,-1 -ignoreNone \
+			-Options.stage2.smoothing 0.1 \
+				-create -overwrite \
+				-testIndexFile /dev/null \
+				-execPoolDir outs/robocup \
+			-inputPaths data/robocup.clean/test200$1 \
+			-alignSavePath outs/robocup/save.200$1.aligns \
+			-paramSavePath outs/robocup/save.200$1.params \
+			-trainStart 0 -trainEnd $2 -testStart $2 -testEnd $total || exit 1
+	else
+		echo "Using saved alignments for 200$1"
+	fi
+}
+align 1 $train2001
+align 2 $train2002
+align 3 $train2003
+align 4 $train2004
+
+# -- RUN
+run(){
+	java \
+		-cp dist/generation.jar:etc/lib.jar:etc/aux.jar:etc/scala-library.jar \
+		-Xmx500M -server generation.Generation \
+		-useTemplates \
+		-eventModel maxent -fieldModel maxent -wordModel perceptron \
+		-sigmaEvent 1.5 -sigmaFieldSet 1.5 -sigmaTemplate 1.5 \
+		-maxentIterations 100 -perceptronIterations 10 \
+		-prohibitNonNumericNum -maxTemplates 100 -minTemplCount 0 \
+			-featEventMarkov -featEventTail 2 -featEventAllTails \
+			-featEventTypeRep -featEventHist -featEventLMStop -featEventVal fuzzy \
+			-featFSPrior -featFSVal fuzzy \
+			-featTemplMarkov -featTemplLM -lmFactor 1.0 -featTemplPrior \
+			-featTemplHierarchical -featTemplVal fuzzy \
+			-lm event3 -numGrams 3 -lmInputPath data/robocup.clean/test200$1 \
+			-lmFileExt text \
+		-modelType event3 -inputFileExt events -inputFormat raw -initNoise 0 \
+		-outputFullPred -useEventTypeDistrib true -oneEventPerExample 0,-1 \
+		-dontCrossPunctuation false \
+		-disallowConsecutiveRepeatFields true -Options.stage2.numIters 10 \
+		-newEventTypeFieldPerWord 0,0 -indepFields 0,0 \
+		-indepEventTypes 0,-1 \
+		-Options.stage2.smoothing 0.1 \
+			-create -overwrite \
+			-testIndexFile outs/robocup/index.txt \
+			-execPoolDir outs/robocup \
+			-loadParams -loadAligns \
+		-forceTrueEvent -ignoreNone -singleEventGen \
+		-entityRegex "^[pP]((ink)|(urple))[0-9]*$" \
+			-inputPaths data/robocup.clean/test200$1 \
+			-alignSavePath outs/robocup/save.200$1.aligns \
+			-paramSavePath outs/robocup/save.200$1.params \
+			-trainStart 0 -trainEnd $2 -testStart $2 -testEnd $total || exit 1
+}
+run 1 $train2001
+run 2 $train2002
+run 3 $train2003
+run 4 $train2004
+
+
+# -- Compile Score
+#(get indexed lines)
+size=$(echo `wc outs/robocup/index.txt` | awk '{print $1}')
+l2001=$(sed "`expr $size - 3`q;d" outs/robocup/index.txt)
+l2002=$(sed "`expr $size - 2`q;d" outs/robocup/index.txt)
+l2003=$(sed "`expr $size - 1`q;d" outs/robocup/index.txt)
+l2004=$(sed "`expr $size - 0`q;d" outs/robocup/index.txt)
+
+tail -n 4 outs/robocup/index.txt
+
+echo ""
+echo "AVERAGE STATISTICS"
+echo "----------"
+#(bleu score)
+bleu2001=$(expr `echo "$l2001" | awk '{print $2}'`)
+bleu2002=$(expr `echo "$l2002" | awk '{print $2}'`)
+bleu2003=$(expr `echo "$l2003" | awk '{print $2}'`)
+bleu2004=$(expr `echo "$l2004" | awk '{print $2}'`)
+bleu=$(calc "( $bleu2001*$s2001 + $bleu2002*$s2002 + $bleu2003*$s2003 + $bleu2004*$s2004 ) / ($s2001+$s2002+$s2003+$s2004 )" )
+echo "BLEU SCORE: $bleu"
+
+#(f1 score)
+F2001=$(expr `echo "$l2001" | awk '{print $3}'`)
+F2002=$(expr `echo "$l2002" | awk '{print $3}'`)
+F2003=$(expr `echo "$l2003" | awk '{print $3}'`)
+F2004=$(expr `echo "$l2004" | awk '{print $3}'`)
+F1=$(calc "( $F2001*$s2001 + $F2002*$s2002 + $F2003*$s2003 + $F2004*$s2004 ) / ($s2001+$s2002+$s2003+$s2004 )" )
+echo "F1 SCORE: $F1"
+
+#(precision score)
+P2001=$(expr `echo "$l2001" | awk '{print $5}'`)
+P2002=$(expr `echo "$l2002" | awk '{print $5}'`)
+P2003=$(expr `echo "$l2003" | awk '{print $5}'`)
+P2004=$(expr `echo "$l2004" | awk '{print $5}'`)
+PREC=$(calc "( $P2001*$s2001 + $P2002*$s2002 + $P2003*$s2003 + $P2004*$s2004 ) / ($s2001+$s2002+$s2003+$s2004 )" )
+echo "PRECISION: $PREC"
+
+#(recall score)
+R2001=$(expr `echo "$l2001" | awk '{print $6}'`)
+R2002=$(expr `echo "$l2002" | awk '{print $6}'`)
+R2003=$(expr `echo "$l2003" | awk '{print $6}'`)
+R2004=$(expr `echo "$l2004" | awk '{print $6}'`)
+RECALL=$(calc "( $R2001*$s2001 + $R2002*$s2002 + $R2003*$s2003 + $R2004*$s2004 ) / ($s2001+$s2002+$s2003+$s2004 )" )
+echo "RECALL: $RECALL"
+
+echo "----------"
+echo ""

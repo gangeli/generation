@@ -1,0 +1,205 @@
+--------------------------------------------------------------------------------
+July 17 2011
+Maintained by Gabor Angeli (angeli@cs.stanford.edu)
+--------------------------------------------------------------------------------
+
+This is the companion code for the 2010 EMNLP paper "A Simple 
+Domain-Independent Approach To Generation." To run the experiments in the paper,
+untar the data.tar.gz file, and run one of the ./run.[domain] scripts.
+
+Details on the domains, and the options available to the program, are given
+below:
+
+--------------------------------------------------------------------------------
+ WEATHER 
+--------------------------------------------------------------------------------
+The weather domain contains weather forecasts from across the United States
+over the course of a couple of days. The data is documented in 
+data/weather/readme.
+
+Running experiments on the dataset, as described in the paper, can be done
+with the ./run.weather command. This command also documents the features
+and options with which the experiments were run. A summary of the options
+used in generation is given in the Options section.
+
+The results for the Weather dataset, reported in the paper, are:
+	BLEU: 51.5
+	F1:   65.4
+
+
+--------------------------------------------------------------------------------
+ ROBOCUP 
+--------------------------------------------------------------------------------
+The Robocup domain contains commentary on 5 Robocup finals games.
+The data is taken originally from Chen and Mooney's work on Robocup, and 
+can be found at: http://www.cs.utexas.edu/~ml/clamp/sportscasting/#data.
+Documentation of the formatting used for this work can be found
+along with the Weather data, in data/weather/readme.
+
+Running experiments on the dataset, as described in the paper, can be done
+with the ./run.robocup command. This command also documents the features
+and options with which the experiments were run. A summary of the options
+used in generation is given in the Options section.
+
+To enable content selection, remove the -forceTrueEvents option in the
+run.robocup file.
+
+The results for the Robocup dataset, reported in the paper, are:
+	BLEU: 28.8
+	F1:   79.9
+
+--------------------------------------------------------------------------------
+ SUMTIME
+--------------------------------------------------------------------------------
+The Sumtime domain contains a number of technical weather forecasts taken
+from oil rigs. The data is taken originally from the Prodigy website, at
+http://www.itri.brighton.ac.uk/home/Anja.Belz/Prodigy/
+Documentation of the formatting used for this work can be found
+along with the Weather data, in data/weather/readme.
+
+Running experiments on the dataset, as described in the paper, can be done
+with the ./run.sumtime command. This command also documents the features
+and options with which the experiments were run. A summary of the options
+used in generation is given in the Options section.
+
+To enable content selection, remove the -forceTrueEvents option in the
+run.robocup file.
+To disable custom features, or replace them with your own, remove/replace
+the -eventChoice, -fieldsetChoice, -templateChoice and -templateFillChoice
+flags. The value they take is a class implementing the AChoice class.
+
+The results for the Sumtime dataset, reported in the paper, are:
+	BLEU:            32.9 (with custom features: 62.3)
+
+--------------------------------------------------------------------------------
+ OPTIONS
+--------------------------------------------------------------------------------
+The options available to the program are documented implicitly in
+the class induction.Options. Note that most of these options are now obsolete;
+the most common options to tweak are either used in one of the examples
+above, or else involve including/tweaking a feature. The latter options
+are all prefaced with "feat."
+
+Required Options
+-inputFormat              [raw, tag, mrg, or seg] should be "raw"
+-modelType                [gmm, pmmm, hmm, pcfg, dmv, seg, align, event3] should be "event3"
+
+
+Other Options
+-config                    path to a config file
+  
+-alignSavePath             Path to save/load alignments from;
+-allowVstrFallback         Allow Vstr Fallback
+-allowZeroProbSentence     Allow zero probability words
+-directNumGeneration       Generate numbers at training, not from params
+-dropToLM                  drop to LM
+-entityRegex               Entity Regex
+-eventChoice               Class for the event choice
+-eventModel                [maxent,perceptron] Type of classifier to use
+-featEventAllTails         include sub-tail features
+-featEventDistinct         number of event types in world state
+-featEventHist             generate event given events seen in past
+-featEventHistSet          set of events seen before
+-featEventIndex            position of event in the world state
+-featEventLMStop           language model stop feature for stop term
+-featEventMarkov           n-gram feature for event
+-featEventNewType          event type is new
+-featEventOtherPresent     what other event types are present
+-featEventOverkill         event overkill feature
+-featEventRep              repeated event boolean marker
+-featEventTail             length of tail to condition over
+-featEventTemporal         some temporal information on the event
+-featEventTypeRep          repeated event type boolean marker
+-featEventVal              field values in world state under event
+-featFSFirst               whether we're at the beginning of a generation
+-featFSPrior               prior distribution on template frequency
+-featFSVal                 field values as input feature
+-featFieldAllTails         include sub-tail features
+-featFieldLastVal          condition on the value of the last field
+-featFieldMarkov           n-gram features for field
+-featFieldRep              repeated field type boolean marker
+-featFieldTail             length of tail to condition over
+-featFieldVal              field value in world state for this field
+-featTemplHierarchical     less specific templates
+-featTemplLM               Language model score on template start
+-featTemplLength           n-gram features for templates
+-featTemplMarkov           n-gram features for templates
+-featTemplPrior            prior distribution on template frequency
+-featTemplVal              field values as input feature
+-featTemplValDiff          Difference between this field value and prev values of same type
+-featWordEventVal          word conditioned on other fields in event
+-featWordLM                language model as feature
+-featWordLen               feature for the length of generated words
+-featWordMarkov            n-gram features for word
+-featWordPEvent            condition on the parent event
+-featWordPField            condition on the parent field
+-featWordVal               parent field value as input feature
+-fieldChoice               Class for the field choice
+-fieldModel                [maxent,perceptron] Type of classifier to use
+-fieldSetChoice            Class for the field set choice
+-fieldSetModel             [maxent,perceptron] Type of classifier to use
+-filterTimes               Filter out time fields for sumtime data
+-forceActualAlignment      Force actual alignments
+-forceMaximalFS            Force using the largest possible field set
+-forceStrongTrueEvents     Absolutely force the true events
+-forceTrueEvents           Generate from true event
+-genFromGold               Generate from gold alignments
+-genPrint                  Print as we generate
+-globalAverageWeights      Use averaged weights
+-globalDebug               Debug classifier
+-globalDepthEnd            End of number of depths in gradual train
+-globalDepthStart          Start of number of depths in gradual train
+-globalIterations          Number of iterations for global model
+-globalLazy                Be as lazy as possible in global model
+-globalMaxentIters         Maximum entropy iterations for pre-train
+-globalPerceptronIters     Percepton iterations for pre-train
+-globalPretrain            Pre-train the parameters
+-globalTrain               Use the global training model
+-globalUnk                 Probability for unknown terms at test
+-heuristicAlign            Heuristically align sumtime data
+-ignoreNone                Ignore (none) events
+-independentExamples       Treat each example generation independently (average score)
+-interactive               Start interactive shell
+-kbestK                    K to use in k-best
+-lm                        [simple, knesserney, event3] lm to use (event3)
+-lmFactor                  language model feature weight
+-lmFileExt                 Language model file extention (e.g. text);
+-lmInputPaths              Input path for sentences
+-lmMaxExamples             Maximum number of sentences to read
+-loadAligns                Load alignments from file
+-loadParams                Load parameters from file
+-logChoices                Log choices and their fired features
+-maxNumDif                 Threshhold to which numbers are the same
+-maxTemplates              The maximum number of templates to extract
+-maxentIterations          Number of iterations
+-metaIters                 re-train from inferred alignments
+-minTemplCount             Mininum count of templates for it to be considered
+-numGrams                  n-gram length (default: trigram = 3)
+-oneChildTemplPerParent    Force each parent to correspond to exactly one child template
+-paramSavePath             Path to save/load parameters from
+-perceptronIterations      Number of iterations (perceptron)
+-printCellWidth            Print cell width
+-prohibitNonNumericNum     Prohibit number generation from non-numeric field
+-sample                    Sample from the classifier distribution
+-scoreResults              Score results
+-searchType                Search type to use in testing
+-shuffleAlignments         shuffle alignments
+-shuffleSeed               seed for shuffle alignments
+-sigmaEvent                Sigma (event choice)
+-sigmaField                Sigma (field choice)
+-sigmaFieldSet             Sigma (field set choice)
+-sigmaTemplate             Sigma (template choice)
+-sigmaWord                 Sigma (word choice)
+-singleEventGen            Only generate from single event
+-squashNums                Treat all numbers as a single entity
+-templateChoice            Class for the template choice
+-templateFillChoice        Class for the template fill choice
+-templateModel             [maxent,perceptron] Type of classifier to use
+-testIndexFile             Test Index File
+-testParticles             Number of particles at test time
+-trainParticles            Number of particles in training
+-trueFirstEvent            Bait first event to true
+-useTemplates              Use templates
+-valDiffThreshold          Threshold for 'same' value
+-wordChoice                Class for the word choice
+-wordModel                 [maxent,perceptron] Type of classifier to use
